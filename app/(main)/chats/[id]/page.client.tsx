@@ -6,13 +6,90 @@ import { splitByFirstCodeFence } from "@/lib/utils";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { startTransition, use, useEffect, useRef, useState } from "react";
-import { ChatCompletionStream } from "together-ai/lib/ChatCompletionStream.mjs";
 import ChatBox from "./chat-box";
 import ChatLog from "./chat-log";
 import CodeViewer from "./code-viewer";
 import CodeViewerLayout from "./code-viewer-layout";
 import type { Chat } from "./page";
 import { Context } from "../../providers";
+
+// Custom stream handler for OpenAI format
+class OpenAIStreamHandler {
+  private reader: ReadableStreamDefaultReader<Uint8Array>;
+  private decoder: TextDecoder;
+  private contentCallbacks: ((delta: string, content: string) => void)[] = [];
+  private finalCallbacks: ((content: string) => void)[] = [];
+  private content: string = "";
+
+  constructor(stream: ReadableStream<Uint8Array>) {
+    this.reader = stream.getReader();
+    this.decoder = new TextDecoder();
+  }
+
+  on(event: 'content', callback: (delta: string, content: string) => void): this;
+  on(event: 'finalContent', callback: (content: string) => void): this;
+  on(event: string, callback: (...args: any[]) => void): this {
+    if (event === 'content') {
+      this.contentCallbacks.push(callback);
+    } else if (event === 'finalContent') {
+      this.finalCallbacks.push(callback);
+    }
+    
+    // Start processing if this is the first callback
+    if (this.contentCallbacks.length === 1 || this.finalCallbacks.length === 1) {
+      this.processStream();
+    }
+    
+    return this;
+  }
+
+  private async processStream() {
+    try {
+      let buffer = '';
+      
+      while (true) {
+        const { done, value } = await this.reader.read();
+        
+        if (done) {
+          // Stream ended, call final callbacks
+          this.finalCallbacks.forEach(callback => callback(this.content));
+          break;
+        }
+        
+        buffer += this.decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || ''; // Keep incomplete line in buffer
+        
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            const data = line.slice(6);
+            if (data === '[DONE]') {
+              this.finalCallbacks.forEach(callback => callback(this.content));
+              return;
+            }
+            
+            try {
+              const parsed = JSON.parse(data);
+              const delta = parsed.choices?.[0]?.delta?.content || '';
+              if (delta) {
+                this.content += delta;
+                this.contentCallbacks.forEach(callback => callback(delta, this.content));
+              }
+            } catch (e) {
+              // Skip invalid JSON
+            }
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Stream processing error:', error);
+    }
+  }
+
+  static fromReadableStream(stream: ReadableStream<Uint8Array>) {
+    return new OpenAIStreamHandler(stream);
+  }
+}
 
 export default function PageClient({ chat }: { chat: Chat }) {
   const context = use(Context);
@@ -41,7 +118,7 @@ export default function PageClient({ chat }: { chat: Chat }) {
       let didPushToCode = false;
       let didPushToPreview = false;
 
-      ChatCompletionStream.fromReadableStream(stream)
+      OpenAIStreamHandler.fromReadableStream(stream)
         .on("content", (delta, content) => {
           setStreamText((text) => text + delta);
 

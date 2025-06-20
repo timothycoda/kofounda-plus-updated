@@ -8,6 +8,182 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+model User {
+  id            String    @id @default(nanoid(16))
+  email         String    @unique
+  name          String?
+  avatar        String?
+  githubId      String?   @unique
+  githubUsername String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  
+  // Relationships
+  chats         Chat[]
+  projects      Project[]
+  sessions      Session[]
+  githubIntegration GitHubIntegration?
+  
+  @@index([email])
+  @@index([githubId])
+}
+
+model Project {
+  id          String   @id @default(nanoid(16))
+  name        String
+  description String?
+  template    String?  // Template used to create project
+  framework   String   // React, Vue, Next.js, etc.
+  visibility  String   @default("private") // public, private, unlisted
+  githubRepo  String?  // Connected GitHub repository
+  deployUrl   String?  // Deployed application URL
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  // Relationships
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  chats       Chat[]
+  sessions    Session[]
+  files       ProjectFile[]
+  deployments Deployment[]
+  
+  @@index([userId])
+  @@index([visibility])
+}
+
+model ProjectFile {
+  id        String   @id @default(nanoid(16))
+  path      String   // File path within project
+  content   String   @db.Text
+  language  String   // File language/type
+  size      Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  // Relationships
+  projectId String
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  
+  @@unique([projectId, path])
+  @@index([projectId])
+}
+
+model Chat {
+  id                String    @id @default(nanoid(16))
+  title             String
+  model             String
+  quality           String
+  prompt            String
+  llamaCoderVersion String    @default("v3")
+  shadcn            Boolean   @default(true)
+  isForked          Boolean   @default(false)
+  parentChatId      String?   // For forked sessions
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  
+  // Relationships
+  userId            String?
+  user              User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
+  projectId         String?
+  project           Project?  @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  messages          Message[]
+  parentChat        Chat?     @relation("ChatForks", fields: [parentChatId], references: [id])
+  forkedChats       Chat[]    @relation("ChatForks")
+  
+  @@index([userId])
+  @@index([projectId])
+  @@index([parentChatId])
+}
+
+model Message {
+  id        String   @id @default(nanoid(16))
+  role      String   // system, user, assistant
+  content   String   @db.Text
+  metadata  Json?    // Additional message metadata
+  position  Int
+  createdAt DateTime @default(now())
+  
+  // Relationships
+  chatId    String
+  chat      Chat     @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  
+  @@index([chatId])
+}
+
+model Session {
+  id          String   @id @default(nanoid(16))
+  name        String
+  description String?
+  isActive    Boolean  @default(true)
+  snapshot    Json?    // Session state snapshot
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  // Relationships
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  projectId   String?
+  project     Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  
+  @@index([userId])
+  @@index([projectId])
+}
+
+model Template {
+  id           String   @id @default(nanoid(16))
+  name         String
+  description  String
+  framework    String   // React, Vue, Next.js, etc.
+  category     String   // landing-page, dashboard, blog, etc.
+  thumbnail    String?  // Preview image URL
+  config       Json     // Template configuration
+  files        Json     // Template files structure
+  tags         String[] // Searchable tags
+  isOfficial   Boolean  @default(false)
+  downloadCount Int     @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  
+  @@index([framework])
+  @@index([category])
+  @@index([isOfficial])
+}
+
+model GitHubIntegration {
+  id              String   @id @default(nanoid(16))
+  userId          String   @unique
+  accessToken     String   // Encrypted GitHub access token
+  refreshToken    String?  // Encrypted refresh token
+  installationId  String?  // GitHub App installation ID
+  permissions     Json?    // Granted permissions
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  // Relationships
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@index([userId])
+}
+
+model Deployment {
+  id          String   @id @default(nanoid(16))
+  url         String   // Deployed URL
+  provider    String   // vercel, netlify, render, etc.
+  status      String   // pending, success, failed
+  logs        String?  @db.Text
+  deployedAt  DateTime?
+  createdAt   DateTime @default(now())
+  
+  // Relationships
+  projectId   String
+  project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  
+  @@index([projectId])
+  @@index([status])
+}
+
+// Legacy model - keeping for backward compatibility
 model GeneratedApp {
   id        String   @id @default(nanoid(5))
   model     String
@@ -16,28 +192,4 @@ model GeneratedApp {
   createdAt DateTime @default(now())
 
   @@index([id])
-}
-
-model Chat {
-  id                String    @id @default(nanoid(16))
-  model             String
-  quality           String
-  prompt            String
-  title             String
-  llamaCoderVersion String    @default("v2")
-  shadcn            Boolean
-  messages          Message[]
-  createdAt         DateTime  @default(now())
-}
-
-model Message {
-  id        String   @id @default(nanoid(16))
-  role      String
-  content   String
-  chatId    String
-  chat      Chat     @relation(fields: [chatId], references: [id], onDelete: Cascade)
-  position  Int
-  createdAt DateTime @default(now())
-
-  @@index([chatId])
 }

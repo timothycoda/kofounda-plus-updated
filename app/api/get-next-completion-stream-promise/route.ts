@@ -2,7 +2,7 @@ import { PrismaClient } from "@prisma/client";
 import { PrismaNeon } from "@prisma/adapter-neon";
 import { Pool } from "@neondatabase/serverless";
 import { z } from "zod";
-import Together from "together-ai";
+import OpenAI from "openai";
 
 export async function POST(req: Request) {
   const neon = new Pool({ connectionString: process.env.DATABASE_URL });
@@ -36,28 +36,56 @@ export async function POST(req: Request) {
     messages = [messages[0], messages[1], messages[2], ...messages.slice(-7)];
   }
 
-  let options: ConstructorParameters<typeof Together>[0] = {};
-  if (process.env.HELICONE_API_KEY) {
-    options.baseURL = "https://together.helicone.ai/v1";
-    options.defaultHeaders = {
-      "Helicone-Auth": `Bearer ${process.env.HELICONE_API_KEY}`,
-      "Helicone-Property-appname": "LlamaCoder",
-      "Helicone-Session-Id": message.chatId,
-      "Helicone-Session-Name": "LlamaCoder Chat",
-    };
-  }
+  const openai = new OpenAI({
+    apiKey: process.env.AZURE_OPENAI_API_KEY,
+    baseURL: `${process.env.AZURE_OPENAI_ENDPOINT}/openai/deployments/${process.env.AZURE_OPENAI_DEPLOYMENT_NAME}`,
+    defaultQuery: { 'api-version': '2024-08-01-preview' },
+    defaultHeaders: {
+      'api-key': process.env.AZURE_OPENAI_API_KEY,
+    },
+  });
 
-  const together = new Together(options);
-
-  const res = await together.chat.completions.create({
-    model,
+  const res = await openai.chat.completions.create({
+    model: process.env.AZURE_OPENAI_DEPLOYMENT_NAME || model,
     messages: messages.map((m) => ({ role: m.role, content: m.content })),
     stream: true,
     temperature: 0.2,
     max_tokens: 9000,
   });
 
-  return new Response(res.toReadableStream());
+  // Convert OpenAI stream to readable stream
+  const encoder = new TextEncoder();
+  const decoder = new TextDecoder();
+
+  const readableStream = new ReadableStream({
+    async start(controller) {
+      try {
+        for await (const chunk of res) {
+          const delta = chunk.choices[0]?.delta?.content || '';
+          if (delta) {
+            const data = {
+              choices: [{
+                delta: {
+                  content: delta
+                }
+              }]
+            };
+            controller.enqueue(encoder.encode(`data: ${JSON.stringify(data)}\n\n`));
+          }
+        }
+        controller.enqueue(encoder.encode('data: [DONE]\n\n'));
+        controller.close();
+      } catch (error) {
+        controller.error(error);
+      }
+    },
+  });
+
+  return new Response(readableStream, {
+    headers: {
+      'Content-Type': 'text/plain; charset=utf-8',
+    },
+  });
 }
 
 export const runtime = "edge";

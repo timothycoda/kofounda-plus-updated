@@ -1,45 +1,93 @@
-import Image from "next/image";
+"use client";
 
-import GithubIcon from "@/components/icons/github-icon";
-import logo from "@/public/logo.png";
-import Link from "next/link";
+import { motion } from "framer-motion";
 
 export default function Header() {
   return (
-    <header className="relative mx-auto flex w-full shrink-0 items-center justify-center py-6">
-      <Link href="/">
-        <Image
-          src={logo}
-          alt=""
-          quality={100}
-          className="mx-auto h-9 object-contain"
-          priority
-        />
-      </Link>
+    <motion.header 
+      initial={{ opacity: 0, y: -20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.6 }}
+      className="relative mx-auto flex w-full shrink-0 items-center justify-between py-6 px-4 lg:px-8"
+    >
+      {/* Logo */}
+      <motion.div
+        initial={{ opacity: 0, x: -20 }}
+        animate={{ opacity: 1, x: 0 }}
+        transition={{ delay: 0.2, duration: 0.6 }}
+        className="flex items-center gap-3"
+      >
+        <div className="flex items-center justify-center w-10 h-10 bg-gradient-to-r from-violet-600 to-blue-600 rounded-xl shadow-lg">
+          <svg 
+            className="w-6 h-6 text-white" 
+            fill="none" 
+            stroke="currentColor" 
+            viewBox="0 0 24 24"
+          >
+            <path 
+              strokeLinecap="round" 
+              strokeLinejoin="round" 
+              strokeWidth={2} 
+              d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" 
+            />
+          </svg>
+        </div>
+        <div className="hidden sm:block">
+          <h1 className="text-xl font-bold bg-gradient-to-r from-white to-white/80 bg-clip-text text-transparent">
+            CODA AI Builder
+          </h1>
+          <p className="text-xs text-white/60">AI-Powered Development</p>
+        </div>
+      </motion.div>
 
-      <div className="absolute right-3">
+      {/* Navigation */}
+      <motion.nav
+        initial={{ opacity: 0, x: 20 }}
+        animate={{ opacity: 1, x: 0 }}
+        transition={{ delay: 0.4, duration: 0.6 }}
+        className="hidden md:flex items-center gap-6"
+      >
         <a
-          href="https://github.com/nutlope/llamacoder"
-          target="_blank"
-          className="ml-auto hidden items-center gap-3 rounded-full bg-white/95 px-5 py-2 text-sm font-medium text-gray-700 shadow-sm ring-1 ring-gray-100 transition-all hover:bg-white hover:shadow-md hover:ring-gray-200 sm:flex"
+          href="#features"
+          className="text-white/70 hover:text-white transition-colors text-sm font-medium"
         >
-          <GithubIcon className="h-[18px] w-[18px]" />
-          <div className="flex items-center gap-1.5">
-            <span className="font-semibold text-gray-900">5k+</span>
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              width="14"
-              height="14"
-              viewBox="0 0 24 24"
-              fill="currentColor"
-              className="text-amber-400"
-            >
-              <path d="M12 .587l3.668 7.568 8.332 1.151-6.064 5.828 1.48 8.279-7.416-3.967-7.417 3.967 1.481-8.279-6.064-5.828 8.332-1.151z" />
-            </svg>
-            <span className="font-medium">on GitHub</span>
-          </div>
+          Features
         </a>
-      </div>
-    </header>
+        <a
+          href="#templates"
+          className="text-white/70 hover:text-white transition-colors text-sm font-medium"
+        >
+          Templates
+        </a>
+        <a
+          href="#docs"
+          className="text-white/70 hover:text-white transition-colors text-sm font-medium"
+        >
+          Docs
+        </a>
+      </motion.nav>
+
+      {/* CTA Button */}
+      <motion.div
+        initial={{ opacity: 0, x: 20 }}
+        animate={{ opacity: 1, x: 0 }}
+        transition={{ delay: 0.6, duration: 0.6 }}
+        className="flex items-center gap-3"
+      >
+        <button className="hidden sm:flex items-center gap-2 px-4 py-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl text-white/90 hover:bg-white/15 transition-all duration-200 text-sm font-medium">
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          Sign In
+        </button>
+        
+        {/* Mobile menu button */}
+        <button className="md:hidden p-2 text-white/70 hover:text-white transition-colors">
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+          </svg>
+        </button>
+      </motion.div>
+    </motion.header>
   );
 }
