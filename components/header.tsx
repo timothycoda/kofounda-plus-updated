@@ -34,7 +34,7 @@ export default function Header() {
         </div>
         <div className="hidden sm:block">
           <h1 className="text-xl font-bold bg-gradient-to-r from-white to-white/80 bg-clip-text text-transparent">
-            CODA AI Builder
+            Kofounda
           </h1>
           <p className="text-xs text-white/60">AI-Powered Development</p>
         </div>

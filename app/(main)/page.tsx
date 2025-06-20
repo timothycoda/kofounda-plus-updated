@@ -162,7 +162,7 @@ export default function Home() {
               transition={{ delay: 0.6, duration: 0.6 }}
               className="mt-6 text-lg md:text-xl text-white/70 max-w-2xl mx-auto leading-relaxed"
             >
-              Transform your ideas into production-ready applications with our AI-powered 
+              Transform your ideas into production-ready applications with Kofounda's AI-powered 
               development platform. No setup required.
             </motion.p>
           </motion.div>
